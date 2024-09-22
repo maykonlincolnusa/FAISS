@@ -32,7 +32,8 @@ runs:
         conda update -y -q conda
         echo "$CONDA/bin" >> $GITHUB_PATH
 
-        conda install -y -q python=3.11 cmake make swig numpy scipy pytest
+        conda install -y -q -c conda-forge numpy=2.1.0
+        conda install -y -q python=3.11 cmake make swig scipy pytest
 
         # install base packages for ARM64
         if [ "${{ runner.arch }}" = "ARM64" ]; then
@@ -68,9 +69,9 @@ runs:
           : # skip torch install via conda, we need to install via pip to get
             #  ROCm-enabled version until it's supported in conda by PyTorch
         elif [ "${{ inputs.gpu }}" = "ON" ]; then
-          conda install -y -q pytorch pytorch-cuda=12.4 -c pytorch -c nvidia/label/cuda-12.4.0
+          conda install -y -q "pytorch>=2" pytorch-cuda=12.4 -c pytorch -c nvidia/label/cuda-12.4.0
         else
-          conda install -y -q pytorch -c pytorch
+          conda install -y -q "pytorch>=2" -c pytorch
         fi
     - name: ROCm - Install dependencies
       if: inputs.rocm == 'ON'
