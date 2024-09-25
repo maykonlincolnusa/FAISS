@@ -255,6 +255,11 @@ static inline uint32_t cmp_xe32(
 }
 
 template <std::uint8_t Shift>
+static inline uint32x4_t vshlq(uint32x4_t vec) {
+    return vshlq_n_u32(vec, Shift);
+}
+
+template <std::uint8_t Shift>
 static inline uint16x8_t vshlq(uint16x8_t vec) {
     return vshlq_n_u16(vec, Shift);
 }
@@ -972,6 +977,63 @@ struct simd8uint32 {
         return ~(*this == other);
     }
 
+    // shift must be known at compile time
+    simd8uint32 operator<<(const int shift) const {
+        switch (shift) {
+            case 0:
+                return *this;
+            case 1:
+                return simd8uint32{detail::simdlib::unary_func(data)
+                                           .call<detail::simdlib::vshlq<1>>()};
+            case 2:
+                return simd8uint32{detail::simdlib::unary_func(data)
+                                           .call<detail::simdlib::vshlq<2>>()};
+            case 3:
+                return simd8uint32{detail::simdlib::unary_func(data)
+                                           .call<detail::simdlib::vshlq<3>>()};
+            case 4:
+                return simd8uint32{detail::simdlib::unary_func(data)
+                                           .call<detail::simdlib::vshlq<4>>()};
+            case 5:
+                return simd8uint32{detail::simdlib::unary_func(data)
+                                           .call<detail::simdlib::vshlq<5>>()};
+            case 6:
+                return simd8uint32{detail::simdlib::unary_func(data)
+                                           .call<detail::simdlib::vshlq<6>>()};
+            case 7:
+                return simd8uint32{detail::simdlib::unary_func(data)
+                                           .call<detail::simdlib::vshlq<7>>()};
+            case 8:
+                return simd8uint32{detail::simdlib::unary_func(data)
+                                           .call<detail::simdlib::vshlq<8>>()};
+            case 9:
+                return simd8uint32{detail::simdlib::unary_func(data)
+                                           .call<detail::simdlib::vshlq<9>>()};
+            case 10:
+                return simd8uint32{detail::simdlib::unary_func(data)
+                                           .call<detail::simdlib::vshlq<10>>()};
+            case 11:
+                return simd8uint32{detail::simdlib::unary_func(data)
+                                           .call<detail::simdlib::vshlq<11>>()};
+            case 12:
+                return simd8uint32{detail::simdlib::unary_func(data)
+                                           .call<detail::simdlib::vshlq<12>>()};
+            case 13:
+                return simd8uint32{detail::simdlib::unary_func(data)
+                                           .call<detail::simdlib::vshlq<13>>()};
+            case 14:
+                return simd8uint32{detail::simdlib::unary_func(data)
+                                           .call<detail::simdlib::vshlq<14>>()};
+            case 15:
+                return simd8uint32{detail::simdlib::unary_func(data)
+                                           .call<detail::simdlib::vshlq<15>>()};
+            case 16:
+                return simd8uint32{detail::simdlib::unary_func(data)
+                                           .call<detail::simdlib::vshlq<16>>()};
+            default:
+                FAISS_THROW_FMT("Invalid shift %d", shift);
+        }
+    }
     // Checks whether the other holds exactly the same bytes.
     template <typename T>
     bool is_same_as(T other) const {
@@ -1191,6 +1253,15 @@ struct simd8float32 {
     std::string tostring() const {
         return detail::simdlib::elements_to_string<float, 8u>("%g,", *this);
     }
+
+    float accumulate() const {
+        float32x4_t sum_0 = vpaddq_f32(data.val[0], data.val[0]);
+        float32x4_t sum_1 = vpaddq_f32(data.val[1], data.val[1]);
+
+        float32x4_t sum2_0 = vpaddq_f32(sum_0, sum_0);
+        float32x4_t sum2_1 = vpaddq_f32(sum_1, sum_1);
+        return vgetq_lane_f32(sum2_0, 0) + vgetq_lane_f32(sum2_1, 0);
+    }
 };
 
 // hadd does not cross lanes
@@ -1219,6 +1290,25 @@ inline simd8float32 fmadd(
             vfmaq_f32(c.data.val[1], a.data.val[1], b.data.val[1])}};
 }
 
+// load 8 uint8_t from code + i and extend the elements to float32
+inline simd8float32 load8(const uint8_t* code, int i) {
+    uint8x8_t x8 = vld1_u8((const uint8_t*)(code + i));
+    uint16x8_t y8 = vmovl_u8(x8);
+    uint16x4_t y8_0 = vget_low_u16(y8);
+    uint16x4_t y8_1 = vget_high_u16(y8);
+
+    // convert uint16 -> uint32 -> fp32
+    return simd8float32(
+            {vcvtq_f32_u32(vmovl_u16(y8_0)), vcvtq_f32_u32(vmovl_u16(y8_1))});
+}
+
+inline simd8uint32 load8_16bits_as_uint32(const uint8_t* code, int i) {
+    uint16x4x2_t codei = vld1_u16_x2((const uint16_t*)(code + 2 * i));
+    return simd8uint32({vmovl_u16(codei.val[0]), vmovl_u16(codei.val[1])});
+}
+inline simd8float32 as_float32(simd8uint32 x) {
+    return simd8float32(detail::simdlib::reinterpret_f32(x.data));
+}
 // The following primitive is a vectorized version of the following code
 // snippet:
 //   float lowestValue = HUGE_VAL;
